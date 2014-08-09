@@ -1,12 +1,19 @@
 /**
  * transleight
- * A simple Node.js translation tool
+ * A simple Node.js language translation tool (powered by GoogleTranslate)
  * author: indiependente
  */
 
 var https 		=	require('https');
 var tr 			= 	require('through');
 var urlencode 	= 	require('urlencode');
+var splitnlines = 	require('splitnlines');
+var Stream 		=	require('stream');
+var fs 			=	require('fs');
+var langs 		=	require('./supportedlangs.js').supportedlangs;
+function showSupportedLangs(){
+	return langs;
+}
 
 var options = 	{
 		host 	: 	"translate.google.com",
@@ -18,37 +25,54 @@ var options = 	{
 	};
 
 
-function removeTrash(chunk){
-	if (chunk.indexOf('"],["') < chunk.indexOf('","')){ //remove starting trash
-		chunk = chunk.substring(chunk.indexOf('"],["'), chunk.length).replace('"],["',"");
-	}
-	// console.log(chunk);
-	var toReturn = '';
-	// while(chunk.indexOf('","') !== -1){
-		toReturn += chunk.substring(0, chunk.indexOf('","')).concat("$$$\n");
-		chunk = chunk.substring(chunk.indexOf('"],["'), chunk.length).replace('"],["',"");
-		// console.log("\n\n\n%s",chunk);
-	// }
-	// if(chunk.indexOf('"],["') === -1){
+var ts = new Stream;
+ts.writable = true;
+ts.readable = true;
+ts.write = write;
+ts.end = end;
 
-	// }
-	return toReturn.concat("\n\n\n").concat(chunk);
+function removeTrash(chunk){
+	chunk = chunk.replace(/(\r\n|\r)/gm, "\n");
+	var DELIM_A = '","';
+	var DELIM_B = '"],["';
+	if (chunk.indexOf(DELIM_B) < chunk.indexOf(DELIM_A)){ //remove starting trash
+		chunk = chunk.substring(chunk.indexOf(DELIM_B), chunk.length).replace(DELIM_B,"");
+	}
+
+	while(chunk.indexOf(DELIM_A) !== -1){
+		var toReplace;
+		if (chunk.indexOf(DELIM_B) !== -1) {
+			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.indexOf(DELIM_B));
+		}
+		else{
+			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.length);
+		}
+		chunk = chunk.replace(toReplace,"").replace(DELIM_B,"");
+	}
+
+	return chunk;
 }
 
 function write(data){
-	// var q = this.queue;
-	// var INTRANSLATION = false;
+	// var daq = this.queue;
 	var end = false;
 	var req = https.request(options, function(result) {
 		result.setEncoding('utf8');
-	    result.on("data", function(chunk) { // play with regexp here
-	    	if (chunk.indexOf('"]]') !== -1) {
-	    		console.log('Last chunk');
+	    result.on("data", function(chunk) {
+
+	    	ts.emit('data', chunk);
+	    	// console.log(chunk);
+	    	if (chunk.indexOf('[[["') !== -1){ // First chunk
+				chunk = chunk.replace('[[["', "");
+			}
+	    	if (chunk.indexOf('"]]') !== -1) { // Last chunk
 	    		chunk = chunk.substring(0,chunk.indexOf('","'));
-	    		process.stdout.write(chunk.concat('\n'));
+	    		ts.emit('data',chunk);
 	    		end = true;
+	    		return;
 	    	}
-	    	if(!end)process.stdout.write(removeTrash(chunk.concat('\n')));
+	    	if(!end)
+	    		ts.emit('data',removeTrash(chunk));
 	    });
 	});
 	req.on('error', function(e) {
@@ -57,9 +81,14 @@ function write(data){
 	req.write('q='+urlencode(data.toString()));
 	req.end();
 }
+function end(buf){
+	if(arguments.length) ts.write(buf);
+	ts.emit('end');
+}
 
-
-process.stdin.pipe(tr(write));
+process.stdin.pipe(splitnlines(1)).pipe(ts).pipe(process.stdout);
+// process.stdin.pipe(splitnlines(800)).pipe(tr(write)).pipe(process.stdout);
+// process.stdin.pipe(tr(function(chunk){this.queue(chunk.toString().replace(/(\r\n|\r)/gm, "\n"));})).pipe(process.stdout);
 
 
 
