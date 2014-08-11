@@ -9,6 +9,7 @@ var tr 			= 	require('through');
 var urlencode 	= 	require('urlencode');
 var splitnlines = 	require('splitnlines');
 var Stream 		=	require('stream');
+var streamify 	=	require('streamify');
 var fs 			=	require('fs');
 var langs 		=	require('./supportedlangs.js').supportedlangs;
 function showSupportedLangs(){
@@ -59,20 +60,22 @@ function write(data){
 	var req = https.request(options, function(result) {
 		result.setEncoding('utf8');
 	    result.on("data", function(chunk) {
-
-	    	ts.emit('data', chunk);
+	    	var stream = streamify();
+	    	stream.resolve(chunk);
 	    	// console.log(chunk);
 	    	if (chunk.indexOf('[[["') !== -1){ // First chunk
 				chunk = chunk.replace('[[["', "");
 			}
 	    	if (chunk.indexOf('"]]') !== -1) { // Last chunk
 	    		chunk = chunk.substring(0,chunk.indexOf('","'));
-	    		ts.emit('data',chunk);
+	    		// ts.emit('data',chunk);
+	    		stream.resolve(chunk);
 	    		end = true;
 	    		return;
 	    	}
 	    	if(!end)
-	    		ts.emit('data',removeTrash(chunk));
+	    		stream.resolve(chunk);
+	    		// ts.emit('data',removeTrash(chunk));
 	    });
 	});
 	req.on('error', function(e) {
@@ -86,7 +89,7 @@ function end(buf){
 	ts.emit('end');
 }
 
-process.stdin.pipe(splitnlines(1)).pipe(ts).pipe(process.stdout);
+process.stdin.pipe(splitnlines(1)).pipe(tr(write,end)).pipe(process.stdout);
 // process.stdin.pipe(splitnlines(800)).pipe(tr(write)).pipe(process.stdout);
 // process.stdin.pipe(tr(function(chunk){this.queue(chunk.toString().replace(/(\r\n|\r)/gm, "\n"));})).pipe(process.stdout);
 
