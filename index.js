@@ -4,14 +4,11 @@
  * author: indiependente
  */
 
-var https 		=	require('https');
 var tr 			= 	require('through');
 var urlencode 	= 	require('urlencode');
-var splitnlines = 	require('splitnlines');
-var Stream 		=	require('stream');
-var streamify 	=	require('streamify');
-var fs 			=	require('fs');
 var langs 		=	require('./supportedlangs.js').supportedlangs;
+var tstream 	=	require('./tstream.js');
+
 function showSupportedLangs(){
 	return langs;
 }
@@ -26,70 +23,93 @@ var options = 	{
 	};
 
 
-var ts = new Stream;
-ts.writable = true;
-ts.readable = true;
-ts.write = write;
-ts.end = end;
-
-function removeTrash(chunk){
-	chunk = chunk.replace(/(\r\n|\r)/gm, "\n");
-	var DELIM_A = '","';
-	var DELIM_B = '"],["';
-	if (chunk.indexOf(DELIM_B) < chunk.indexOf(DELIM_A)){ //remove starting trash
-		chunk = chunk.substring(chunk.indexOf(DELIM_B), chunk.length).replace(DELIM_B,"");
-	}
-
-	while(chunk.indexOf(DELIM_A) !== -1){
-		var toReplace;
-		if (chunk.indexOf(DELIM_B) !== -1) {
-			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.indexOf(DELIM_B));
-		}
-		else{
-			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.length);
-		}
-		chunk = chunk.replace(toReplace,"").replace(DELIM_B,"");
-	}
-
-	return chunk;
-}
-
 function write(data){
-	// var daq = this.queue;
-	var end = false;
-	var req = https.request(options, function(result) {
-		result.setEncoding('utf8');
-	    result.on("data", function(chunk) {
-	    	var stream = streamify();
-	    	stream.resolve(chunk);
-	    	// console.log(chunk);
-	    	if (chunk.indexOf('[[["') !== -1){ // First chunk
-				chunk = chunk.replace('[[["', "");
-			}
-	    	if (chunk.indexOf('"]]') !== -1) { // Last chunk
-	    		chunk = chunk.substring(0,chunk.indexOf('","'));
-	    		// ts.emit('data',chunk);
-	    		stream.resolve(chunk);
-	    		end = true;
-	    		return;
-	    	}
-	    	if(!end)
-	    		stream.resolve(chunk);
-	    		// ts.emit('data',removeTrash(chunk));
-	    });
-	});
-	req.on('error', function(e) {
-		console.log('problem with request: ' + e.message);
-	});
-	req.write('q='+urlencode(data.toString()));
-	req.end();
+	function clean(string){
+		var tmp = string;
+    	// console.log(tmp);
+    	if (tmp.indexOf('[[["') !== -1){
+			tmp = tmp.replace('[[["', "");
+		}
+		// console.log(tmp);
+		if (tmp.indexOf('",') !== -1){
+			tmp = tmp.substring(0,tmp.indexOf('",'));
+		}
+		// console.log(tmp);
+		return tmp;
+	}
+	this.queue(clean(data.toString()));
 }
-function end(buf){
-	if(arguments.length) ts.write(buf);
-	ts.emit('end');
+function end(data){
+	if(arguments.length) write(data);
+	this.queue(null);
 }
 
-process.stdin.pipe(splitnlines(1)).pipe(tr(write,end)).pipe(process.stdout);
+var filtr = tr(write, end);
+
+process.stdin.pipe(tstream('Italian')).pipe(filtr).pipe(process.stdout);
+
+// var ts = new Stream;
+// ts.writable = true;
+// ts.readable = true;
+// ts.write = write;
+// ts.end = end;
+// function removeTrash(chunk){
+// 	chunk = chunk.replace(/(\r\n|\r)/gm, "\n");
+// 	var DELIM_A = '","';
+// 	var DELIM_B = '"],["';
+// 	if (chunk.indexOf(DELIM_B) < chunk.indexOf(DELIM_A)){ //remove starting trash
+// 		chunk = chunk.substring(chunk.indexOf(DELIM_B), chunk.length).replace(DELIM_B,"");
+// 	}
+
+// 	while(chunk.indexOf(DELIM_A) !== -1){
+// 		var toReplace;
+// 		if (chunk.indexOf(DELIM_B) !== -1) {
+// 			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.indexOf(DELIM_B));
+// 		}
+// 		else{
+// 			toReplace = chunk.substring(chunk.indexOf(DELIM_A), chunk.length);
+// 		}
+// 		chunk = chunk.replace(toReplace,"").replace(DELIM_B,"");
+// 	}
+
+// 	return chunk;
+// }
+// function write(data){
+// 	// var daq = this.queue;
+// 	var end = false;
+// 	var req = https.request(options, function(result) {
+// 		result.setEncoding('utf8');
+// 	    result.on("data", function(chunk) {
+// 	    	var stream = streamify();
+// 	    	stream.resolve(chunk);
+// 	    	// console.log(chunk);
+// 	    	if (chunk.indexOf('[[["') !== -1){ // First chunk
+// 				chunk = chunk.replace('[[["', "");
+// 			}
+// 	    	if (chunk.indexOf('"]]') !== -1) { // Last chunk
+// 	    		chunk = chunk.substring(0,chunk.indexOf('","'));
+// 	    		// ts.emit('data',chunk);
+// 	    		stream.resolve(chunk);
+// 	    		end = true;
+// 	    		return;
+// 	    	}
+// 	    	if(!end)
+// 	    		stream.resolve(chunk);
+// 	    		// ts.emit('data',removeTrash(chunk));
+// 	    });
+// 	});
+// 	req.on('error', function(e) {
+// 		console.log('problem with request: ' + e.message);
+// 	});
+// 	req.write('q='+urlencode(data.toString()));
+// 	req.end();
+// }
+// function end(buf){
+// 	if(arguments.length) ts.write(buf);
+// 	ts.emit('end');
+// }
+
+// process.stdin.pipe(splitnlines(1)).pipe(tr(write,end)).pipe(process.stdout);
 // process.stdin.pipe(splitnlines(800)).pipe(tr(write)).pipe(process.stdout);
 // process.stdin.pipe(tr(function(chunk){this.queue(chunk.toString().replace(/(\r\n|\r)/gm, "\n"));})).pipe(process.stdout);
 

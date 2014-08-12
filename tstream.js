@@ -5,15 +5,21 @@ var chunknlines = 	require('chunknlines');
 var urlencode   =	require('urlencode');
 var zlib        =	require('zlib');
 var through		=	require('through');
-// var concat 		=	require('concat-stream');
+var langs 		=	require('./supportedlangs.js').supportedlangs;
 
-var tstream = function(){
-	var buffer = [];
+var tstream = function(lang){
+	if (typeof lang === 'undefined') {
+		throw new Error('No target language specified');
+	}
+	if (!(lang in langs)) {
+		throw new Error('Unknown target language');
+	}
 	var encoder = through(
 					function write(buf){this.queue(urlencode(buf));},
 					function end(buf){if(arguments.length) write(buf);this.queue(null);}
 					);
 
+	var target = langs[lang];
 	var translator = new Stream;
 	translator.writable = true;
 	translator.readable = true;
@@ -22,8 +28,9 @@ var tstream = function(){
 	translator.pendings = 0;
 
 	function write(buf){
+		var template = 'https://translate.google.com/translate_a/single?client=t&sl=auto&tl=$$$&hl=$$$&dt=bd&dt=ex&dt=ld&dt=md&dt=qc&dt=rw&dt=rm&dt=ss&dt=t&dt=at&dt=sw&ie=UTF-8&oe=UTF-8&ssel=0&tsel=0';
 		var options = {
-			url 	:	"https://translate.google.com/translate_a/single?client=t&sl=auto&tl=it&hl=it&dt=bd&dt=ex&dt=ld&dt=md&dt=qc&dt=rw&dt=rm&dt=ss&dt=t&dt=at&dt=sw&ie=UTF-8&oe=UTF-8&ssel=0&tsel=0",
+			url 	:	'',
 			headers : 	{
 						'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36'
 						// , "accept-encoding" : "gzip"
@@ -32,6 +39,9 @@ var tstream = function(){
 			encoding: null,
 			body	: ''
 		};
+
+		options.url = template.replace(/\$\$\$/g, target);
+		// console.log(options.url);
 		options.body = 'q='+buf;
 		translator.pendings++;
 		var res_stream = request(options,function(err, res, body){
@@ -42,10 +52,9 @@ var tstream = function(){
 			}
 		});
 		res_stream.on('end',function(){
-
 			// console.log('\npendings: '+translator.pendings);
 			if(!translator.pendings)
-				{console.log('end');translator.emit('end');}
+				{translator.emit('end');}
 		});
 	};
 	function end(buf){
@@ -53,9 +62,13 @@ var tstream = function(){
 		// console.log(translator.pendings);
 	};
 
+	var decoder = through(
+					function write(buf){this.queue(urlencode.decode(buf));},
+					function end(buf){if(arguments.length) write(buf);this.queue(null);}
+					);
 
-	return combine(chunknlines(), encoder, translator);//, zlib.createGunzip());
+	return combine(chunknlines(), encoder, translator, decoder);//, zlib.createGunzip());
 
 };
 
-process.stdin.pipe(tstream()).pipe(process.stdout);
+module.exports = tstream;
