@@ -1,0 +1,40 @@
+{
+  "name": "transleight",
+  "version": "0.1.0",
+  "description": "Language Translation Stream",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "node examples/catMITLicense.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/indiependente/transleight.git"
+  },
+  "keywords": [
+    "language",
+    "translation",
+    "transform",
+    "through",
+    "stream",
+    "transleight",
+    "translate",
+    "translator",
+    "google"
+  ],
+  "author": "indiependente",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/indiependente/transleight/issues"
+  },
+  "homepage": "https://github.com/indiependente/transleight",
+  "dependencies": {
+    "chunknlines": "^0.1.1",
+    "request": "^2.40.0",
+    "stream-combiner": "^0.2.1",
+    "through": "^2.3.4",
+    "urlencode": "^0.2.0"
+  }
+}

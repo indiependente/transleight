@@ -3,23 +3,17 @@ var request     = 	require('request');
 var Stream      = 	require('stream');
 var chunknlines = 	require('chunknlines');
 var urlencode   =	require('urlencode');
-var zlib        =	require('zlib');
+// var zlib        =	require('zlib');
 var through		=	require('through');
-var langs 		=	require('./supportedlangs.js').supportedlangs;
 
 var tstream = function(lang){
-	if (typeof lang === 'undefined') {
-		throw new Error('No target language specified');
-	}
-	if (!(lang in langs)) {
-		throw new Error('Unknown target language');
-	}
+
 	var encoder = through(
 					function write(buf){this.queue(urlencode(buf));},
 					function end(buf){if(arguments.length) write(buf);this.queue(null);}
 					);
 
-	var target = langs[lang];
+	var target = lang;
 	var translator = new Stream;
 	translator.writable = true;
 	translator.readable = true;
@@ -46,8 +40,8 @@ var tstream = function(lang){
 		translator.pendings++;
 		var res_stream = request(options,function(err, res, body){
 			if (!err && res.statusCode == 200){
-				// console.log(body);
-				translator.emit('data',body);
+				// console.log(body.toString());
+				translator.emit('data', body);
 				translator.pendings--;
 			}
 		});
