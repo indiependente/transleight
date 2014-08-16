@@ -1,10 +1,11 @@
 var combine		=	require('stream-combiner');
 var request     = 	require('request');
 var Stream      = 	require('stream');
-var chunknlines = 	require('chunknlines');
+// var chunknlines = 	require('chunknlines');
 var urlencode   =	require('urlencode');
 // var zlib        =	require('zlib');
 var through		=	require('through');
+var sbdStream	=	require('../../sbd-stream/');
 
 var tstream = function(lang){
 
@@ -61,7 +62,7 @@ var tstream = function(lang){
 					function end(buf){if(arguments.length) write(buf);this.queue(null);}
 					);
 
-	return combine(chunknlines(), encoder, translator, decoder);//, zlib.createGunzip());
+	return combine(sbdStream, encoder, translator, decoder);//, zlib.createGunzip());
 
 };
 
