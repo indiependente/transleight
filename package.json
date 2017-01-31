@@ -1,6 +1,6 @@
 {
   "name": "transleight",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "description": "Language Translation Stream",
   "main": "index.js",
   "directories": {
