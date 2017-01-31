@@ -3,8 +3,9 @@ var request     = 	require('request');
 var Stream      = 	require('stream');
 var chunknlines = 	require('chunknlines');
 var urlencode   =	require('urlencode');
-// var zlib        =	require('zlib');
 var through		=	require('through');
+const token = require('google-translate-token'); // recent changes in Google Translate request params need this token
+// var zlib        =	require('zlib');
 
 var tstream = function(lang){
 
@@ -22,34 +23,43 @@ var tstream = function(lang){
 	translator.pendings = 0;
 
 	function write(buf){
-		var template = 'https://translate.google.com/translate_a/single?client=t&sl=auto&tl=$$$&hl=$$$&dt=bd&dt=ex&dt=ld&dt=md&dt=qc&dt=rw&dt=rm&dt=ss&dt=t&dt=at&dt=sw&ie=UTF-8&oe=UTF-8&ssel=0&tsel=0';
-		var options = {
-			url 	:	'',
-			headers : 	{
-						'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36'
-						// , "accept-encoding" : "gzip"
-						},
-			method 	: "POST",
-			encoding: null,
-			body	: ''
-		};
-
-		options.url = template.replace(/\$\$\$/g, target);
-		// console.log(options.url);
-		options.body = 'q='+buf;
-		translator.pendings++;
-		var res_stream = request(options,function(err, res, body){
-			if (!err && res.statusCode == 200){
-				// console.log(body.toString());
-				translator.emit('data', body);
-				translator.pendings--;
+		var decoded_buf = urlencode.decode(buf)
+		token.get(decoded_buf).then(
+			function (tk) {
+				var options = {
+							url 	:	'https://translate.google.com/translate_a/single?client=t&sl=auto&tl=$$$&hl=$$$&dt=at&dt=bd&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=t&ie=UTF-8&oe=UTF-8&source=btn&ssel=0&tk=TOKEN&q='+buf,
+							headers : 	{
+										'Accept' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+										'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:49.0) Gecko/20100101 Firefox/49.0',
+										// 'accept-encoding' : 'plain',
+										// 'Cookie' : 'NID=92=EQcfF_xg9OVwdR1eKIHRxZYWzd8GC6FnzSh4ku6EOLySSYe7QhPD1_fiBkL4ugqZmwfSh2YNe08JJ0uK8pNNal5GBoyiMQKgr3mw5525_6VkKfHsUx3SF9raE9rSCl7kd_RqttiQWT-JMMLfhtXd44LyYZM9ifzdJDiOTFs1azeUsSUVSqN8ZkI; SID=HQTBhlJSBvVQKqVT6XTuCI0sly32d5BPBPyufoDn8Pvx2B2-fNGOXHf6Ps23qIRyX0X1Yw.; HSID=A9x9FNynn2CwOn1Hr; SSID=All2pUWWLcnb5Crxv; APISID=HF41EQ37Vr7dkyLo/A2Obvon_0c82BDGG7; SAPISID=lLuEgzcdks9CT1zr/Am1O3o2AdytfZvnb8; CONSENT=YES+IT.it+20150628-20-0; GMAIL_RTT=73',
+										// // 'Connection' : 'keep-alive',
+										// 'Host' : 'translate.google.com',
+										// 'Upgrade-Insecure-Requests' : '1'
+										},
+							method 	: "GET"
+					};
+		
+					options.url = options.url.replace(/\$\$\$/g, target);
+					options.url = options.url.replace(/TOKEN/g, tk.value);
+					// console.log(options.url);
+					
+					translator.pendings++;
+					var res_stream = request(options, function(err, res, body){
+						// console.log(res.statusCode + ' ' + res.statusMessage)
+						if (!err && res.statusCode == 200) {
+							// console.log(body.toString());
+							translator.emit('data', body);
+							translator.pendings--;
+						}
+					});
+					res_stream.on('end', function() {
+						// console.log('\npendings: '+translator.pendings);
+						if(!translator.pendings)
+							{translator.emit('end');}
+					});
 			}
-		});
-		res_stream.on('end',function(){
-			// console.log('\npendings: '+translator.pendings);
-			if(!translator.pendings)
-				{translator.emit('end');}
-		});
+		);
 	};
 	function end(buf){
 		if(arguments.length) write(buf);

@@ -9,5 +9,5 @@ var spawn 	=	require('child_process').spawn;
 // Transleight stream just needs to know the language you want to translate to.
 // Here I choose to translate from the language detected in the LICENSE file to Italian.
 
-var cat 	=	spawn('cat', ['LICENSE']);
+var cat 	=	spawn('cat', ['../LICENSE']);
 cat.stdout.pipe(trnsl8.stream('it')).pipe(process.stdout);
