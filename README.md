@@ -33,8 +33,8 @@ streamA.pipe(trnsl8.stream('targetLanguage')).pipe(streamB);
 ```
 
 ##ToDo
+- [x] Accept Encoding _gzip_
 - [ ] Sentence Boundary Splitting
-- [ ] Accept Encoding _gzip_
 
 ##License
 ####MIT
