@@ -33,6 +33,7 @@
   "dependencies": {
     "chunknlines": "^0.1.1",
     "google-translate-token": "^1.0.0",
+    "oppressor": "0.0.1",
     "request": "^2.40.0",
     "stream-combiner": "^0.2.1",
     "through": "^2.3.4",
